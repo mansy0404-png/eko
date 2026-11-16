@@ -1,0 +1,15 @@
+# build output
+/eko
+/eko-*
+*.test
+*.prof
+
+# embedded UI build (rebuild with `make ui`)
+/internal/api/dist/
+
+# frontend deps
+/web/node_modules/
+
+# local junk
+.DS_Store
+*.log

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Stop Eko
+Comment=Turn off the Eko proxy
+Exec=@BINDIR@/eko-ui stop
+TryExec=@BINDIR@/eko-ui
+Icon=eko
+Terminal=false
+Categories=Development;
+Keywords=proxy;http;https;mitm;stop;off;quit;
+StartupNotify=false

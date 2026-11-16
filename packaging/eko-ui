@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# Eko desktop launcher: starts the daemon if needed, then opens the control UI
+# in a Chromium app window so it looks and feels like a native app.
+set -euo pipefail
+
+BIN="${EKO_BIN:-$HOME/.local/bin/eko}"
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}/eko"
+PROFILE="$DATA/chromium"
+RUNTIME="$DATA/runtime.json"
+LOG="$DATA/eko.log"
+API="http://127.0.0.1:8081"
+
+if [[ ! -x "$BIN" ]]; then
+  # Fall back to a sibling binary so the script also works from a checkout.
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -x "$here/../eko" ]]; then
+    BIN="$here/../eko"
+  else
+    echo "eko: cannot find the eko binary (set EKO_BIN)" >&2
+    notify "Cannot find the eko binary."
+    exit 1
+  fi
+fi
+
+health() { curl -fsS --max-time 1 "$API/api/healthz" >/dev/null 2>&1; }
+
+notify() {
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a Eko -i eko "Eko" "$1" >/dev/null 2>&1 || true
+  fi
+}
+
+read_token() {
+  [[ -f "$RUNTIME" ]] || return 1
+  sed -n 's/.*"token": "\([^"]*\)".*/\1/p' "$RUNTIME" | head -1
+}
+
+start_daemon() {
+  mkdir -p "$DATA"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$BIN" >>"$LOG" 2>&1 < /dev/null &
+  else
+    nohup "$BIN" >>"$LOG" 2>&1 < /dev/null &
+  fi
+  for _ in $(seq 1 80); do
+    health && return 0
+    sleep 0.1
+  done
+  echo "eko: daemon did not become ready, see $LOG" >&2
+  notify "The proxy did not start. See $LOG"
+  return 1
+}
+
+open_window() {
+  local token url
+  token="$(read_token || true)"
+  if [[ -z "$token" ]]; then
+    echo "eko: no runtime token found; is the daemon running?" >&2
+    exit 1
+  fi
+  url="$API/?token=$token"
+
+  local browser=""
+  if [[ -n "${EKO_BROWSER:-}" ]]; then
+    browser="$EKO_BROWSER"
+  fi
+  for c in chromium chromium-browser google-chrome-stable google-chrome brave-browser; do
+    [[ -n "$browser" ]] && break
+    if command -v "$c" >/dev/null 2>&1; then
+      browser="$(command -v "$c")"
+      break
+    fi
+  done
+  if [[ -z "$browser" ]]; then
+    echo "eko: no Chromium-based browser found; opening with xdg-open" >&2
+    xdg-open "$url"
+    return 1
+  fi
+
+  mkdir -p "$PROFILE"
+  "$browser" \
+    --app="$url" \
+    --class=Eko \
+    --name=Eko \
+    --password-store=basic \
+    --user-data-dir="$PROFILE" \
+    --no-first-run \
+    --no-default-browser-check \
+    --disable-features=Translate,MediaRouter \
+    --disable-sync \
+    --window-size=1440,900
+  return 0
+}
+
+case "${1:-}" in
+  stop)
+    if pid="$(sed -n 's/.*"pid": \([0-9]*\).*/\1/p' "$RUNTIME" 2>/dev/null | head -1)" && [[ -n "$pid" ]]; then
+      kill "$pid" 2>/dev/null || true
+      for _ in $(seq 1 30); do
+        health || break
+        sleep 0.1
+      done
+      notify "Proxy stopped."
+      echo "eko: stopped pid $pid"
+    else
+      notify "Eko is not running."
+      echo "eko: not running"
+    fi
+    ;;
+  status)
+    if health; then
+      echo "eko: running at ${API} (proxy 127.0.0.1:8080)"
+    else
+      echo "eko: not running"
+      exit 1
+    fi
+    ;;
+  url)
+    token="$(read_token || true)"
+    [[ -n "$token" ]] || { echo "eko: not running" >&2; exit 1; }
+    echo "$API/?token=$token"
+    ;;
+  "" )
+    started=0
+    if ! health; then
+      if ! start_daemon; then
+        exit 1
+      fi
+      started=1
+    fi
+    t0=$(date +%s)
+    if open_window; then
+      elapsed=$(( $(date +%s) - t0 ))
+      # If the browser handed off to an existing session it may exit quickly
+      # while the app window remains; don't kill the daemon in that case.
+      if [[ $started -eq 1 && $elapsed -ge 3 ]]; then
+        "$BIN" stop >/dev/null 2>&1 || true
+      fi
+    fi
+    ;;
+  *)
+    echo "usage: eko-ui [stop|status|url]" >&2
+    exit 2
+    ;;
+esac

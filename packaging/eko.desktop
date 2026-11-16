@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Eko
+GenericName=HTTP Intercept Proxy
+Comment=Capture, inspect and edit HTTP traffic
+Exec=@BINDIR@/eko-ui
+TryExec=@BINDIR@/eko-ui
+Icon=eko
+Terminal=false
+Categories=Development;
+Keywords=proxy;http;https;mitm;debug;api;
+StartupNotify=true
+StartupWMClass=chrome-127.0.0.1__-Default
+Actions=Stop;
+
+[Desktop Action Stop]
+Name=Stop Eko
+Exec=@BINDIR@/eko-ui stop
