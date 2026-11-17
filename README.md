@@ -12,7 +12,7 @@
 - **Intercept**: pause matching requests/responses, edit raw bytes, then forward or drop (with a safety auto-forward timeout).
 - **Repeater**: resend and tweak raw requests in tabs with resizable request/response panes; repeater traffic is recorded and filterable in history.
 - **Intruder (basic)**: run simple payload attacks using `§§` markers in a request template with a payload list and results/response preview.
-- **403 bypass**: right-click a History request to fire a curated set of header, path-normalisation and method variations (like the common Burp 403-bypass extensions) and see which ones return something other than 403.
+- **403 bypass**: a dedicated tab (also seeded from a History right-click) that fires a curated set of header, path-normalisation and method variations (like the common Burp 403-bypass extensions) and shows which ones return something other than 403.
 - **CA helpers**: download the local root CA and optionally import it into detected NSS databases (Firefox/Chromium profiles, `~/.pki/nssdb`) via `certutil`.
 - **App-like controls**: runs on loopback only, per-run auth token for the control UI, one-click stop, and a launcher that can start/stop the daemon.
 
@@ -99,7 +99,7 @@ Notes:
 Select a flow to inspect request/response headers and bodies (decoded for display, downloadable raw). **Right-click a request** for a context menu: **Send to Repeater**, **Send to Intruder** (seeds the template with a `§§` marker in the first query value), **Copy URL**, or **Delete request**. The detail view also has a **→ repeater** button.
 
 ### 403 bypass
-Right-click a request in History → **403 bypass**. Eko sends ~40 variations of it (spoofed proxy/IP headers, path normalisation tricks such as trailing slashes / encoded characters / double slashes, and method overrides) and shows each variant's status, size and time. Rows with a status other than 403 are highlighted; **interesting only** hides the rest. Click a variant to see its raw request and response, or send it to Repeater. Use **Re-run** / **Stop** to control the run. Only use this on targets you are authorised to test — some method variants can change server state.
+Open the **403 Bypass** tab to paste/edit a raw request and press **Run 403 bypass**, or right-click a request in History → **403 bypass** to load it into the tab and run automatically. Eko sends ~40 variations (spoofed proxy/IP headers, path normalisation tricks such as trailing slashes / encoded characters / double slashes, and method overrides) and shows each variant's status, size and time. Rows with a status other than 403 are highlighted; **interesting only** hides the rest. Click a variant to see its raw request and response, or send it to Repeater. Use **Stop** / **Run** to control the run. Only use this on targets you are authorised to test — some method variants can change server state.
 
 ### Intercept
 Toggle **req** / **resp** to hold matching traffic. Edit raw request/response, then **Forward** (Ctrl+Enter) or **Drop**. Held items auto-forward after the configured timeout.

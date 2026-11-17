@@ -4,6 +4,7 @@
   import Intercept from './routes/Intercept.svelte'
   import Repeater from './routes/Repeater.svelte'
   import Intruder from './routes/Intruder.svelte'
+  import Bypass403 from './routes/Bypass403.svelte'
   import SettingsView from './routes/Settings.svelte'
   import { api } from './lib/api.js'
   import {
@@ -240,6 +241,9 @@
       <button class:active={$activeTab === 'intruder'} on:click={() => activeTab.set('intruder')}>
         Intruder
       </button>
+      <button class:active={$activeTab === 'bypass'} on:click={() => activeTab.set('bypass')}>
+        403 Bypass
+      </button>
       <button class:active={$activeTab === 'settings'} on:click={() => activeTab.set('settings')}>
         Settings
       </button>
@@ -307,6 +311,8 @@
       <Repeater />
     {:else if $activeTab === 'intruder'}
       <Intruder />
+    {:else if $activeTab === 'bypass'}
+      <Bypass403 />
     {:else if $activeTab === 'settings'}
       <SettingsView />
     {/if}

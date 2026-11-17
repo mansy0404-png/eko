@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store'
 
-export const TABS = ['history', 'intercept', 'repeater', 'intruder', 'settings']
+export const TABS = ['history', 'intercept', 'repeater', 'intruder', 'bypass', 'settings']
 
 function initialTab() {
   const h = location.hash.replace(/^#/, '')
@@ -18,6 +18,8 @@ export const repeaterActive = writable(0)
 export const intruderTemplate = writable(
   'GET https://example.com/?id=§§ HTTP/1.1\nAccept: */*\nUser-Agent: eko\n\n',
 )
+export const bypass403Raw = writable('GET https://example.com/admin HTTP/1.1\nAccept: */*\nUser-Agent: eko\n\n')
+export const bypass403Run = writable(0)
 
 let nextId = 1
 

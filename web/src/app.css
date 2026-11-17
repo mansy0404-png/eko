@@ -1326,3 +1326,26 @@ a {
   flex: 1;
   min-height: 0;
 }
+
+/* 403 bypass as a full tab */
+.bypass-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bypass-top {
+  flex: 0 0 34%;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line);
+  background: #0b0f14;
+}
+.bypass-top .editor {
+  flex: 1;
+  min-height: 0;
+}
+.bypass-page > .bypass-body {
+  padding: 10px;
+}
