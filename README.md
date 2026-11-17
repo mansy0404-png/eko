@@ -80,7 +80,8 @@ To inspect HTTPS, your browser/profile must trust eko’s local root CA:
 
 - **Settings → HTTPS certificate** in the UI: download the CA and/or use **install into Firefox / Chromium (NSS)** (uses `certutil` on detected NSS DBs such as Firefox profiles and `~/.pki/nssdb`).
 - CA file path: `~/.config/eko/ca.pem` (also `eko ca`).
-- **Restart the browser** after importing trust.
+- **Fully quit and reopen the browser** after importing trust (a reload is usually not enough).
+- Keep `ca.pem` in place; use the **download root CA** button instead of moving the file. If the certificate is moved/deleted, eko refuses to start rather than silently mint a new CA (which would break existing browser trust). Delete both `ca.pem` and `ca-key.pem` to intentionally create a new CA.
 
 Notes:
 - Import the CA into the **same browser/profile** that FoxyProxy is using. Firefox uses its own per-profile certificate store.

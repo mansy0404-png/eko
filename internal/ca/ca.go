@@ -60,6 +60,13 @@ func LoadOrCreate(dir string) (*CA, error) {
 		return &CA{cert: cert, key: key, pem: certPEM, dir: dir, cache: map[string]*tls.Certificate{}}, nil
 	}
 
+	// Do not silently mint a new CA when only the certificate is missing: the
+	// browser may already trust the previous root, and rotating it would break
+	// HTTPS interception until the new CA is imported again.
+	if _, err := os.Stat(keyPath); err == nil {
+		return nil, fmt.Errorf("root certificate missing at %s (found %s); restore it, or delete both files to create a new CA", certPath, keyPath)
+	}
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err

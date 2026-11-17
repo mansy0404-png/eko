@@ -217,9 +217,15 @@
         </div>
         {#if importLog}<div class="import-results">{importLog}</div>{/if}
         <div class="note" style="margin-top:10px">
-          After installing, restart Firefox. If you prefer manually:
+          After installing, <strong>fully quit and reopen the browser</strong> (a reload is not enough).
+          If you prefer manually:
           <code>certutil -d sql:$HOME/.mozilla/firefox/PROFILE -A -t "C,," -n "Eko Root CA" -i ~/.config/eko/ca.pem</code>.
           Apps that pin certificates will reject the proxy — add those hosts to passthrough.
+        </div>
+        <div class="note" style="margin-top:8px">
+          Keep <code>~/.config/eko/ca.pem</code> in place. If it is moved or deleted, Eko creates a new
+          root CA and every browser must import it again. Use <strong>download root CA</strong> instead of
+          moving the file.
         </div>
       </div>
 
