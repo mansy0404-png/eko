@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from 'svelte'
   import { api, fetchBody, fmtBytes, fmtTime, statusClass } from '../lib/api.js'
   import { activeTab, addRepeaterTab, intruderTemplate, liveTick, stats } from '../lib/store.js'
+  import { buildBypassVariants } from '../lib/bypass403.js'
+  import BodyView from '../lib/BodyView.svelte'
   import Detail from './Detail.svelte'
 
   const ROW = 28
@@ -17,6 +19,15 @@
   let scopeIncludeText = ''
   let scopeExcludeText = ''
   let ctx = null
+
+  let showBypass = false
+  let bypassRaw = ''
+  let bypassResults = []
+  let bypassRunning = false
+  let bypassSelected = 0
+  let bypassRespBody = null
+  let bypassInterestingOnly = false
+  let bypassErr = ''
 
   let listEl
   let scrollTop = 0
@@ -228,6 +239,100 @@
     onDeleted(f.id)
   }
 
+  $: bypassHits = bypassResults.filter((r) => r.status && r.status !== 403 && !r.error).length
+  $: bypassShown = bypassInterestingOnly
+    ? bypassResults.filter((r) => r.status && r.status !== 403 && !r.error)
+    : bypassResults
+  $: bypassSelectedResult = bypassResults[bypassSelected] || null
+
+  async function openBypass(f) {
+    ctx = null
+    showBypass = true
+    bypassRaw = await rawFrom(f)
+    bypassResults = []
+    bypassRunning = false
+    bypassSelected = 0
+    bypassRespBody = null
+    bypassInterestingOnly = false
+    bypassErr = ''
+    runBypass()
+  }
+
+  async function runBypass() {
+    if (bypassRunning) return
+    const variants = buildBypassVariants(bypassRaw)
+    if (!variants.length) {
+      bypassErr = 'Could not find a valid absolute URL in the request line.'
+      return
+    }
+    bypassErr = ''
+    bypassRunning = true
+    bypassResults = variants.map((v, i) => ({
+      i,
+      name: v.name,
+      group: v.group,
+      raw: v.raw,
+      status: 0,
+      length: 0,
+      time: 0,
+      error: '',
+      flow: null,
+    }))
+
+    let cursor = 0
+    async function worker() {
+      while (bypassRunning && cursor < variants.length) {
+        const i = cursor++
+        const start = performance.now()
+        try {
+          const r = await api.repeater(variants[i].raw)
+          const f = r.flow || {}
+          bypassResults[i] = {
+            ...bypassResults[i],
+            status: f.status || 0,
+            length: f.resp?.bodyLen || 0,
+            time: Math.round(performance.now() - start),
+            error: f.err || '',
+            flow: f,
+          }
+        } catch (e) {
+          bypassResults[i] = {
+            ...bypassResults[i],
+            error: e.message,
+            time: Math.round(performance.now() - start),
+          }
+        }
+        bypassResults = [...bypassResults]
+      }
+    }
+    await Promise.all(Array.from({ length: 3 }, () => worker()))
+    bypassRunning = false
+  }
+
+  function stopBypass() {
+    bypassRunning = false
+  }
+
+  async function selectBypass(i) {
+    bypassSelected = i
+    bypassRespBody = null
+    const f = bypassResults[i]?.flow
+    if (f?.id) {
+      try {
+        bypassRespBody = await fetchBody(f.id, 'resp')
+      } catch {}
+    }
+  }
+
+  function bypassToRepeater() {
+    const v = bypassSelectedResult
+    if (v) addRepeaterTab({ name: `403: ${v.name}`.slice(0, 48), raw: v.raw })
+  }
+
+  async function copyBypass() {
+    if (bypassSelectedResult) await navigator.clipboard.writeText(bypassSelectedResult.raw)
+  }
+
   async function clearAll() {
     if (!confirm('Delete the entire captured history?')) return
     await api.clearFlows()
@@ -359,8 +464,84 @@
     <button on:click={() => sendCtxTo('intruder')}>
       Send to <strong>Intruder</strong> <span class="faint">(§§ marker)</span>
     </button>
+    <button on:click={() => openBypass(ctx.flow)}>
+      <strong>403 bypass</strong> <span class="faint">(try variants)</span>
+    </button>
     <button on:click={copyCtxURL}>Copy URL</button>
     <button class="danger" on:click={deleteCtx}>Delete request</button>
+  </div>
+{/if}
+
+{#if showBypass}
+  <div class="scope-modal bypass-modal" on:click|self={() => (showBypass = false)}>
+    <div class="bypass-card">
+      <div class="bypass-head">
+        <div>
+          <h3>403 bypass</h3>
+          <span class="faint mono" title={bypassRaw.split('\n')[0]}>{bypassRaw.split('\n')[0]}</span>
+        </div>
+        <div class="spacer"></div>
+        <label class="chk faint" title="Hide 403 / error responses">
+          <input type="checkbox" bind:checked={bypassInterestingOnly} /> interesting only ({bypassHits})
+        </label>
+        {#if bypassRunning}
+          <button class="btn small danger" on:click={stopBypass}>Stop</button>
+        {:else}
+          <button class="btn small primary" on:click={runBypass}>Re-run</button>
+        {/if}
+        <button class="btn small" on:click={() => (showBypass = false)}>Close</button>
+      </div>
+      <div class="note faint">
+        Sends header, path and method variations of the selected request. Only test targets you are
+        authorized to probe — some method variants may change server state. Variants with a status
+        other than 403 (and no error) are highlighted.
+      </div>
+      {#if bypassErr}<div class="errorbar">{bypassErr}</div>{/if}
+      {#if bypassRunning}
+        <div class="faint" style="font-size:11px">
+          running… {bypassResults.filter((r) => r.status || r.error).length}/{bypassResults.length}
+        </div>
+      {/if}
+      <div class="bypass-body">
+        <div class="bypass-list">
+          {#each bypassShown as r (r.i)}
+            <button
+              class="bypass-row"
+              class:sel={r.i === bypassSelected}
+              class:hit={r.status && r.status !== 403 && !r.error}
+              on:click={() => selectBypass(r.i)}
+            >
+              <span class="muted mono">#{r.i + 1}</span>
+              <span class="bname trunc" title={r.name}>{r.name}</span>
+              <span class="bgroup faint">{r.group}</span>
+              <span class="status {statusClass(r.status)}">{r.status || (r.error ? 'err' : '…')}</span>
+              <span class="muted mono">{r.length ? fmtBytes(r.length) : ''}</span>
+            </button>
+          {/each}
+        </div>
+        <div class="bypass-detail">
+          {#if bypassSelectedResult}
+            <div class="bypass-detail-head">
+              <span class="faint mono trunc">{bypassSelectedResult.name}</span>
+              <span class="faint">{bypassSelectedResult.time} ms</span>
+              <div class="spacer"></div>
+              <button class="btn small" on:click={bypassToRepeater}>to repeater</button>
+              <button class="btn small" on:click={copyBypass}>copy request</button>
+            </div>
+            <div class="bypass-preview">
+              <pre class="mono request-preview">{bypassSelectedResult.raw}</pre>
+              {#if bypassSelectedResult.flow}
+                <BodyView body={bypassRespBody} id={bypassSelectedResult.flow.id || ''} kind="resp" />
+              {:else}
+                <div class="empty">{bypassSelectedResult.error || 'Waiting for response…'}</div>
+              {/if}
+            </div>
+          {:else}
+            <div class="empty">Select a variant.</div>
+          {/if}
+        </div>
+      </div>
+    </div>
   </div>
 {/if}
 

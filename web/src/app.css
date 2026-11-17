@@ -1215,3 +1215,114 @@ a {
 .history-ctx-menu button.danger {
   color: var(--red);
 }
+
+/* 403 bypass results (launched from History right-click) */
+.bypass-modal {
+  z-index: 140;
+}
+.bypass-card {
+  width: 1040px;
+  max-width: 96vw;
+  height: 760px;
+  max-height: 92vh;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+.bypass-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bypass-head h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.bypass-head .mono {
+  font-size: 11px;
+}
+.bypass-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+.bypass-list {
+  flex: 0 0 52%;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.bypass-row {
+  display: grid;
+  grid-template-columns: 34px minmax(90px, 1.3fr) 52px 44px 62px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+  text-align: left;
+}
+.bypass-row:hover {
+  background: var(--panel-3);
+}
+.bypass-row.sel {
+  background: var(--panel-3);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.bypass-row.hit {
+  box-shadow: inset 2px 0 0 var(--green);
+}
+.bypass-row .bgroup {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.bypass-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.bypass-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  flex: none;
+}
+.bypass-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.request-preview {
+  max-height: 150px;
+  overflow: auto;
+  flex: none;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #c9d3e0;
+  border-bottom: 1px solid var(--line);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bypass-preview .bodyview {
+  flex: 1;
+  min-height: 0;
+}
