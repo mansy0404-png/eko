@@ -15,6 +15,9 @@ export const interceptState = writable({ request: false, response: false })
 export const liveTick = writable(0)
 export const repeaterTabs = writable([])
 export const repeaterActive = writable(0)
+export const intruderTemplate = writable(
+  'GET https://example.com/?id=§§ HTTP/1.1\nAccept: */*\nUser-Agent: eko\n\n',
+)
 
 let nextId = 1
 

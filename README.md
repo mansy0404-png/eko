@@ -95,13 +95,13 @@ Notes:
 - In **History**, use **scope…** to set include/exclude patterns for the active project and **in scope** to filter to matching traffic.
 
 ### History
-Select a flow to inspect request/response headers and bodies (decoded for display, downloadable raw). Send a request to **Repeater** from the detail view.
+Select a flow to inspect request/response headers and bodies (decoded for display, downloadable raw). **Right-click a request** for a context menu: **Send to Repeater**, **Send to Intruder** (seeds the template with a `§§` marker in the first query value), **Copy URL**, or **Delete request**. The detail view also has a **→ repeater** button.
 
 ### Intercept
 Toggle **req** / **resp** to hold matching traffic. Edit raw request/response, then **Forward** (Ctrl+Enter) or **Drop**. Held items auto-forward after the configured timeout.
 
 ### Repeater
-Create tabs, edit/paste a raw request (request line with an absolute URL), and **Send** (Ctrl+Enter). Request/response panes are resizable.
+Create tabs, edit/paste a raw request (request line with an absolute URL), and **Send** (Ctrl+Enter). The request and response panes can be resized by dragging the divider (arrow keys nudge it, double-click resets to 50%), switched between side-by-side and stacked with the **columns/rows** button, and reset with **reset split**. Use **find** (Ctrl+F) to search the raw request — Enter/↑/↓ steps through matches. The response toolbar has its own find box that highlights matches in the body with next/previous controls.
 
 Example:
 
@@ -113,7 +113,7 @@ Accept: application/json
 ```
 
 ### Intruder (basic)
-Use `§§` to mark the payload position in a request template, provide a payload list, choose concurrency, and run to view results and responses. (No scripting/match-replace/scanner yet.)
+Use `§§` to mark the payload position in a request template, provide a payload list, choose concurrency, and run to view results and responses. You can right-click a History request to seed the template directly, or paste/edit it in the Intruder tab. (No scripting/match-replace/scanner yet.)
 
 ## Data & privacy
 

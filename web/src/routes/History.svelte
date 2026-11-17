@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  import { api, fmtBytes, fmtTime, statusClass } from '../lib/api.js'
-  import { liveTick, stats } from '../lib/store.js'
+  import { api, fetchBody, fmtBytes, fmtTime, statusClass } from '../lib/api.js'
+  import { activeTab, addRepeaterTab, intruderTemplate, liveTick, stats } from '../lib/store.js'
   import Detail from './Detail.svelte'
 
   const ROW = 28
@@ -16,6 +16,7 @@
   let showScope = false
   let scopeIncludeText = ''
   let scopeExcludeText = ''
+  let ctx = null
 
   let listEl
   let scrollTop = 0
@@ -112,10 +113,14 @@
     measure()
     ro = new ResizeObserver(measure)
     if (listEl) ro.observe(listEl)
+    window.addEventListener('click', closeCtx)
+    window.addEventListener('keydown', onCtxKey)
     return () => {
       ro?.disconnect()
       clearTimeout(debounceTimer)
       clearTimeout(reloadTimer)
+      window.removeEventListener('click', closeCtx)
+      window.removeEventListener('keydown', onCtxKey)
     }
   })
 
@@ -124,6 +129,104 @@
     clearTimeout(debounceTimer)
     clearTimeout(reloadTimer)
   })
+
+  function closeCtx() {
+    if (ctx) ctx = null
+  }
+
+  function onCtxKey(e) {
+    if (e.key === 'Escape') closeCtx()
+  }
+
+  function openCtx(e, f) {
+    e.preventDefault()
+    selectedId = f.id
+    ctx = {
+      x: Math.min(e.clientX, window.innerWidth - 220),
+      y: Math.min(e.clientY, window.innerHeight - 170),
+      flow: f,
+    }
+  }
+
+  function cleanHeaders(headers, decoded) {
+    return (headers || [])
+      .filter(([k]) => {
+        const lk = (k || '').toLowerCase()
+        if (lk === 'host' || lk === 'content-length' || lk === 'transfer-encoding') return false
+        if (lk === 'content-encoding' && decoded) return false
+        return true
+      })
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n')
+  }
+
+  async function rawFrom(f) {
+    let decoded = false
+    let bodyText = ''
+    try {
+      const rb = await fetchBody(f.id, 'req')
+      decoded = !!(rb && rb.decoded)
+      bodyText = rb && !rb.binary ? rb.text || '' : ''
+    } catch {}
+    const headers = cleanHeaders(f.req?.headers, decoded)
+    return `${f.method} ${f.url} HTTP/1.1\n${headers}\n\n${bodyText}`
+  }
+
+  // Put a payload marker in the first query value (or add one) so the request
+  // is ready for an Intruder attack after it is seeded from history.
+  function withMarker(raw) {
+    const nl = raw.indexOf('\n')
+    if (nl < 0) return raw + '§§'
+    const line = raw.slice(0, nl)
+    const m = line.match(/^(\S+)\s+(\S+)\s+(\S+)\s*$/)
+    if (!m) {
+      const sep = raw.indexOf('\n\n')
+      return sep >= 0 ? `${raw.slice(0, sep + 2)}§§${raw.slice(sep + 2)}` : raw + '§§'
+    }
+    const url = m[2]
+    const hash = url.indexOf('#')
+    const clean = hash >= 0 ? url.slice(0, hash) : url
+    const frag = hash >= 0 ? url.slice(hash) : ''
+    const q = clean.indexOf('?')
+    let marked
+    if (q >= 0) {
+      const base = clean.slice(0, q + 1)
+      const kvs = clean.slice(q + 1).split('&')
+      if (kvs[0].includes('=')) kvs[0] = kvs[0].replace(/=.*/, '=§§')
+      else kvs[0] += '=§§'
+      marked = base + kvs.join('&') + frag
+    } else {
+      marked = clean + '?x=§§' + frag
+    }
+    return `${m[1]} ${marked} ${m[3]}` + raw.slice(nl)
+  }
+
+  async function sendCtxTo(kind) {
+    const f = ctx?.flow
+    ctx = null
+    if (!f) return
+    const raw = await rawFrom(f)
+    if (kind === 'repeater') {
+      addRepeaterTab({ name: `${f.method} ${f.host}${f.path}`.slice(0, 48), raw })
+    } else {
+      intruderTemplate.set(withMarker(raw))
+      activeTab.set('intruder')
+    }
+  }
+
+  async function copyCtxURL() {
+    const url = ctx?.flow?.url
+    ctx = null
+    if (url) await navigator.clipboard.writeText(url)
+  }
+
+  async function deleteCtx() {
+    const f = ctx?.flow
+    ctx = null
+    if (!f?.id) return
+    await api.deleteFlow(f.id)
+    onDeleted(f.id)
+  }
 
   async function clearAll() {
     if (!confirm('Delete the entire captured history?')) return
@@ -134,6 +237,7 @@
 
   function onScroll(e) {
     scrollTop = e.target.scrollTop
+    closeCtx()
   }
 
   function pick(f) {
@@ -223,7 +327,8 @@
           class="grid-row"
           class:sel={f.id === selectedId}
           on:click={() => pick(f)}
-          title={f.url}
+          on:contextmenu={(e) => openCtx(e, f)}
+          title={f.url + ' — right-click for options'}
         >
           <span class="muted mono">{fmtTime(f.startedAt)}</span>
           <span class="method {f.method}">{f.method}</span>
@@ -246,6 +351,18 @@
     </div>
   {/if}
 </div>
+
+{#if ctx}
+  <div class="history-ctx-menu" style="left:{ctx.x}px;top:{ctx.y}px">
+    <div class="hctx-title trunc" title={ctx.flow.url}>{ctx.flow.method} {ctx.flow.host}{ctx.flow.path}</div>
+    <button on:click={() => sendCtxTo('repeater')}>Send to <strong>Repeater</strong></button>
+    <button on:click={() => sendCtxTo('intruder')}>
+      Send to <strong>Intruder</strong> <span class="faint">(§§ marker)</span>
+    </button>
+    <button on:click={copyCtxURL}>Copy URL</button>
+    <button class="danger" on:click={deleteCtx}>Delete request</button>
+  </div>
+{/if}
 
 {#if showScope}
   <div class="scope-modal" on:click|self={() => (showScope = false)}>

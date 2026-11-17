@@ -1,7 +1,7 @@
 <script>
   import { api, fetchBody, fmtBytes, statusClass } from '../lib/api.js'
+  import { intruderTemplate } from '../lib/store.js'
 
-  let template = 'GET https://example.com/?id=§§ HTTP/1.1\nAccept: */*\nUser-Agent: eko\n\n'
   let payloadsText = '1\n2\n3'
   let results = []
   let running = false
@@ -31,7 +31,7 @@
         const i = idx++
         if (i >= payloads.length) return
         const p = payloads[i]
-        const raw = template.split('§§').join(p)
+        const raw = $intruderTemplate.split('§§').join(p)
         const t0 = performance.now()
         try {
           const r = await api.repeater(raw)
@@ -87,7 +87,7 @@
           <button class="btn primary" on:click={start} disabled={!parsePayloads().length}>Start attack</button>
         {/if}
       </div>
-      <textarea class="editor" bind:value={template} spellcheck="false"></textarea>
+      <textarea class="editor" bind:value={$intruderTemplate} spellcheck="false"></textarea>
     </div>
     <div class="intruder-pane narrow">
       <div class="toolbar"><span class="faint mono">payloads (one per line)</span></div>
