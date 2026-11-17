@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
   import { api, fetchBody, fmtBytes, fmtTime, statusClass } from '../lib/api.js'
+  import { headersText, requestHeaders } from '../lib/editor.js'
   import { activeTab, addRepeaterTab, bypass403Raw, bypass403Run, intruderTemplate, liveTick, stats } from '../lib/store.js'
   import Detail from './Detail.svelte'
 
@@ -148,19 +149,13 @@
     }
   }
 
-  function cleanHeaders(headers, decoded) {
-    return (headers || [])
-      .filter(([k]) => {
-        const lk = (k || '').toLowerCase()
-        if (lk === 'host' || lk === 'content-length' || lk === 'transfer-encoding') return false
-        if (lk === 'content-encoding' && decoded) return false
-        return true
-      })
-      .map(([k, v]) => `${k}: ${v}`)
-      .join('\n')
-  }
-
   async function rawFrom(f) {
+    // The History list only carries summaries (no headers), so load the full
+    // flow before building a raw request — otherwise every header is lost.
+    let full = f
+    try {
+      full = await api.flow(f.id)
+    } catch {}
     let decoded = false
     let bodyText = ''
     try {
@@ -168,8 +163,8 @@
       decoded = !!(rb && rb.decoded)
       bodyText = rb && !rb.binary ? rb.text || '' : ''
     } catch {}
-    const headers = cleanHeaders(f.req?.headers, decoded)
-    return `${f.method} ${f.url} HTTP/1.1\n${headers}\n\n${bodyText}`
+    const headers = headersText(requestHeaders(full, decoded))
+    return `${full.method || f.method} ${full.url || f.url} HTTP/1.1\n${headers}\n\n${bodyText}`
   }
 
   // Put a payload marker in the first query value (or add one) so the request

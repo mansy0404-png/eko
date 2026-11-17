@@ -1,5 +1,6 @@
 <script>
   import { api, fetchBody, fmtBytes, fmtTime, statusClass } from '../lib/api.js'
+  import { headersText, requestHeaders } from '../lib/editor.js'
   import { addRepeaterTab, liveTick } from '../lib/store.js'
   import BodyView from '../lib/BodyView.svelte'
 
@@ -47,27 +48,14 @@
     }
   }
 
-  function cleanHeaders(headers, decoded) {
-    return (headers || [])
-      .filter(([k]) => {
-        const lk = k.toLowerCase()
-        if (lk === 'host') return false
-        if (lk === 'content-length' || lk === 'transfer-encoding') return false
-        if (lk === 'content-encoding' && decoded) return false
-        return true
-      })
-      .map(([k, v]) => `${k}: ${v}`)
-      .join('\n')
-  }
+  $: reqHeaders = flow ? requestHeaders(flow, !!(reqBody && reqBody.decoded)) : []
 
   function sendToRepeater() {
     if (!flow) return
-    const decoded = !!(reqBody && reqBody.decoded)
-    const headers = cleanHeaders(flow.req?.headers, decoded)
     const bodyText = reqBody && !reqBody.binary ? reqBody.text : ''
     addRepeaterTab({
       name: `${flow.method} ${flow.host}${flow.path}`,
-      raw: `${flow.method} ${flow.url} HTTP/1.1\n${headers}\n\n${bodyText}`,
+      raw: `${flow.method} ${flow.url} HTTP/1.1\n${headersText(reqHeaders)}\n\n${bodyText}`,
     })
   }
 
@@ -125,9 +113,9 @@
     <div class="pane-body" style="display:flex;flex-direction:column">
       {#if tab === 'req'}
         <div class="headers">
-          {#if flow.req?.headers?.length}
+          {#if reqHeaders.length}
             <div class="kv">
-              {#each flow.req.headers as [k, v]}
+              {#each reqHeaders as [k, v]}
                 <span class="k">{k}</span><span class="v">{v}</span>
               {/each}
             </div>

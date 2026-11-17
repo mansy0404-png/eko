@@ -1,12 +1,16 @@
 <script>
   import { onMount, tick } from 'svelte'
   import { api, fetchBody, fmtBytes, statusClass } from '../lib/api.js'
+  import { applyUrlTransform, parseRawHeaders } from '../lib/editor.js'
   import { addRepeaterTab, closeRepeaterTab, repeaterActive, repeaterTabs } from '../lib/store.js'
   import BodyView from '../lib/BodyView.svelte'
 
   let respBody = null
   let respLoadedId = ''
   let showHeaders = true
+  let showReqHeaders = true
+  let transformMsg = ''
+  let transformTimer
   let splitPct = 50
   let dragging = false
   let splitEl
@@ -30,6 +34,25 @@
   $: reqText = current?.raw || ''
   $: reqMatches = findPositions(reqText, reqSearch)
   $: reqTotal = reqMatches.length
+  $: reqHeaders = parseRawHeaders(reqText)
+
+  function flash(msg) {
+    transformMsg = msg
+    clearTimeout(transformTimer)
+    transformTimer = setTimeout(() => (transformMsg = ''), 4000)
+  }
+
+  // URL encode/decode the text the user marked in the request editor.
+  async function urlTransform(mode) {
+    if (!current || !reqEl) return
+    const result = applyUrlTransform(reqEl.value, reqEl.selectionStart, reqEl.selectionEnd, mode)
+    if (result.error) return flash(result.error)
+    current.raw = result.text
+    await tick()
+    reqEl.focus()
+    reqEl.setSelectionRange(result.start, result.end)
+    flash(result.message)
+  }
 
   function findPositions(text, term) {
     if (!term) return []
@@ -110,6 +133,10 @@
       e.preventDefault()
       reqFindOpen = true
       tick().then(() => document.getElementById('rep-req-find')?.focus())
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+      e.preventDefault()
+      urlTransform(e.shiftKey ? 'decode' : 'encode')
     }
   }
 
@@ -198,8 +225,13 @@
         </button>
         <span class="faint">Ctrl+Enter</span>
         <div class="spacer"></div>
-        <button class="btn small" title="Find in request" on:click={() => (reqFindOpen = !reqFindOpen)}>find</button>
-        <span class="faint mono">raw request</span>
+        <button class="btn small" title="Find in request (Ctrl+F)" on:click={() => (reqFindOpen = !reqFindOpen)}>find</button>
+        <button class="btn small" title="URL-encode selected text (Ctrl+U)" on:click={() => urlTransform('encode')}>URL enc</button>
+        <button class="btn small" title="URL-decode selected text (Ctrl+Shift+U)" on:click={() => urlTransform('decode')}>URL dec</button>
+        <button class="btn small" title="Show/hide parsed request headers" on:click={() => (showReqHeaders = !showReqHeaders)}>
+          {showReqHeaders ? 'hide headers' : 'headers'}
+        </button>
+        <span class="faint mono">{transformMsg}</span>
       </div>
       {#if reqFindOpen}
         <div class="find-bar">
@@ -218,6 +250,19 @@
           <button class="btn small" title="Previous" on:click={() => selectReq(-1)}>↑</button>
           <button class="btn small" title="Next" on:click={() => selectReq(1)}>↓</button>
           <button class="btn small" title="Close find" on:click={() => (reqFindOpen = false)}>×</button>
+        </div>
+      {/if}
+      {#if showReqHeaders}
+        <div class="headers req-headers">
+          {#if reqHeaders.length}
+            <div class="kv">
+              {#each reqHeaders as [k, v]}
+                <span class="k">{k}</span><span class="v">{v}</span>
+              {/each}
+            </div>
+          {:else}
+            <span class="faint">no headers</span>
+          {/if}
         </div>
       {/if}
       <textarea

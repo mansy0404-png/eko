@@ -275,6 +275,9 @@ func (p *Proxy) serve(w http.ResponseWriter, r *http.Request, scheme string) {
 		outReq.Host = hv
 		outReq.Header.Del("Host")
 	}
+	// Host lives outside Header in Go; add it back for the UI so the full
+	// request (including its Host header) is visible and can be seeded.
+	f.Req.Headers = flow.WithHost(f.Req.Headers, outReq.Host)
 	upgrade := outReq.Header.Get("Upgrade") != ""
 	flow.RemoveHop(outReq.Header, upgrade)
 	outReq.Header.Del("Content-Length")
@@ -547,7 +550,7 @@ func (p *Proxy) Repeat(raw string) (*flow.Flow, error) {
 		Proto:     "HTTP/1.1",
 		Repeater:  true,
 		Req: flow.Message{
-			Headers: flow.HeaderList(outReq.Header),
+			Headers: flow.WithHost(flow.HeaderList(outReq.Header), outReq.Host),
 			BodyLen: int64(len(body)),
 		},
 		ReqBody: body,

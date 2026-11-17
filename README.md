@@ -99,13 +99,15 @@ Notes:
 Select a flow to inspect request/response headers and bodies (decoded for display, downloadable raw). **Right-click a request** for a context menu: **Send to Repeater**, **Send to Intruder** (seeds the template with a `§§` marker in the first query value), **Copy URL**, or **Delete request**. The detail view also has a **→ repeater** button.
 
 ### 403 bypass
-Open the **403 Bypass** tab to paste/edit a raw request and press **Run 403 bypass**, or right-click a request in History → **403 bypass** to load it into the tab and run automatically. Eko sends ~40 variations (spoofed proxy/IP headers, path normalisation tricks such as trailing slashes / encoded characters / double slashes, and method overrides) and shows each variant's status, size and time. Rows with a status other than 403 are highlighted; **interesting only** hides the rest. Click a variant to see its raw request and response, or send it to Repeater. Use **Stop** / **Run** to control the run. Only use this on targets you are authorised to test — some method variants can change server state.
+Open the **403 Bypass** tab to paste/edit a raw request and press **Run 403 bypass**, or right-click a request in History → **403 bypass** to load it into the tab and run automatically. Eko sends ~40 variations (spoofed proxy/IP headers, path normalisation tricks such as trailing slashes / encoded characters / double slashes, and method overrides) and shows each variant's status, size and time. Rows with a status other than 403 are highlighted; **interesting only** hides the rest. Click a variant to see its full raw request (scrollable), the response headers, and the response body, or send it to Repeater. Use **Stop** / **Run** to control the run. Only use this on targets you are authorised to test — some method variants can change server state.
 
 ### Intercept
 Toggle **req** / **resp** to hold matching traffic. Edit raw request/response, then **Forward** (Ctrl+Enter) or **Drop**. Held items auto-forward after the configured timeout.
 
 ### Repeater
-Create tabs, edit/paste a raw request (request line with an absolute URL), and **Send** (Ctrl+Enter). The request and response panes can be resized by dragging the divider (arrow keys nudge it, double-click resets to 50%), switched between side-by-side and stacked with the **columns/rows** button, and reset with **reset split**. Use **find** (Ctrl+F) to search the raw request — Enter/↑/↓ steps through matches. The response toolbar has its own find box that highlights matches in the body with next/previous controls.
+Create tabs, edit/paste a raw request (request line with an absolute URL), and **Send** (Ctrl+Enter). The request and response panes can be resized by dragging the divider (arrow keys nudge it, double-click resets to 50%), switched between side-by-side and stacked with the **columns/rows** button, and reset with **reset split**. The request pane shows the parsed **headers** above the editable raw request (toggle with **hide headers**); the response pane does the same. Use **find** (Ctrl+F) to search the raw request — Enter/↑/↓ steps through matches. The response toolbar has its own find box that highlights matches in the body with next/previous controls.
+
+**URL encode / decode:** mark (select) any text in the request editor and press **URL enc** (Ctrl+U) or **URL dec** (Ctrl+Shift+U) — only the selection is replaced and stays selected. This also works in the 403 Bypass request editor. Decoding uses percent-encoding (`%41` → `A`); it does not convert `+` to a space.
 
 Example:
 

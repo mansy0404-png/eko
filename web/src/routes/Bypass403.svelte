@@ -1,5 +1,7 @@
 <script>
+  import { tick } from 'svelte'
   import { api, fetchBody, fmtBytes, statusClass } from '../lib/api.js'
+  import { applyUrlTransform } from '../lib/editor.js'
   import { addRepeaterTab, bypass403Raw, bypass403Run } from '../lib/store.js'
   import { buildBypassVariants } from '../lib/bypass403.js'
   import BodyView from '../lib/BodyView.svelte'
@@ -11,6 +13,9 @@
   let onlyInteresting = false
   let err = ''
   let seenRun = 0
+  let rawEl
+  let transformMsg = ''
+  let transformTimer
 
   $: hits = results.filter((r) => r.status && r.status !== 403 && !r.error).length
   $: shown = onlyInteresting
@@ -81,6 +86,34 @@
     running = false
   }
 
+  function flash(msg) {
+    transformMsg = msg
+    clearTimeout(transformTimer)
+    transformTimer = setTimeout(() => (transformMsg = ''), 4000)
+  }
+
+  async function urlTransform(mode) {
+    if (!rawEl) return
+    const result = applyUrlTransform(rawEl.value, rawEl.selectionStart, rawEl.selectionEnd, mode)
+    if (result.error) return flash(result.error)
+    $bypass403Raw = result.text
+    await tick()
+    rawEl.focus()
+    rawEl.setSelectionRange(result.start, result.end)
+    flash(result.message)
+  }
+
+  function key(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+      e.preventDefault()
+      urlTransform(e.shiftKey ? 'decode' : 'encode')
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      run()
+    }
+  }
+
   async function select(i) {
     selected = i
     respBody = null
@@ -106,6 +139,9 @@
     <div class="toolbar">
       <span class="faint mono">raw request — bypass variants are derived from this</span>
       <div class="spacer"></div>
+      <button class="btn small" title="URL-encode selected text (Ctrl+U)" on:click={() => urlTransform('encode')}>URL enc</button>
+      <button class="btn small" title="URL-decode selected text (Ctrl+Shift+U)" on:click={() => urlTransform('decode')}>URL dec</button>
+      <span class="faint mono">{transformMsg}</span>
       <label class="chk faint" title="Hide 403 / error responses">
         <input type="checkbox" bind:checked={onlyInteresting} /> interesting only ({hits})
       </label>
@@ -115,7 +151,7 @@
         <button class="btn small primary" on:click={run}>Run 403 bypass</button>
       {/if}
     </div>
-    <textarea class="editor" bind:value={$bypass403Raw} spellcheck="false"></textarea>
+    <textarea class="editor" bind:this={rawEl} bind:value={$bypass403Raw} on:keydown={key} spellcheck="false"></textarea>
     {#if err}<div class="errorbar">{err}</div>{/if}
     {#if running}
       <div class="faint" style="font-size:11px;padding:2px 10px">
@@ -155,8 +191,25 @@
           <button class="btn small" on:click={copyRaw}>copy request</button>
         </div>
         <div class="bypass-preview">
+          <div class="preview-label">
+            <span>Request</span>
+            <div class="spacer"></div>
+            <span class="faint mono">full raw request</span>
+          </div>
           <pre class="mono request-preview">{selectedResult.raw}</pre>
           {#if selectedResult.flow}
+            <div class="preview-label"><span>Response headers</span></div>
+            <div class="headers resp-headers">
+              {#if selectedResult.flow.resp?.headers?.length}
+                <div class="kv">
+                  {#each selectedResult.flow.resp.headers as [k, v]}
+                    <span class="k">{k}</span><span class="v">{v}</span>
+                  {/each}
+                </div>
+              {:else}
+                <span class="faint">no response headers</span>
+              {/if}
+            </div>
             <BodyView body={respBody} id={selectedResult.flow.id || ''} kind="resp" />
           {:else}
             <div class="empty">{selectedResult.error || 'Waiting for response…'}</div>

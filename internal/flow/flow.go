@@ -86,6 +86,23 @@ func HeaderMap(h Headers) http.Header {
 	return m
 }
 
+// WithHost adds the request's Host as a normal header entry when it is not
+// already present. Go keeps Host outside http.Request.Header, so without this
+// the UI cannot show (or seed) the full request headers.
+func WithHost(h Headers, hostPort string) Headers {
+	if hostPort == "" {
+		return h
+	}
+	for _, kv := range h {
+		if http.CanonicalHeaderKey(kv[0]) == "Host" {
+			return h
+		}
+	}
+	out := make(Headers, 0, len(h)+1)
+	out = append(out, [2]string{"Host", hostPort})
+	return append(out, h...)
+}
+
 func JoinHeader(h Headers) string {
 	var b strings.Builder
 	for _, kv := range h {
